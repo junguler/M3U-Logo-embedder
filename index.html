@@ -1,0 +1,2552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M3U Logo Embedder</title>
+<style>
+/* Concrete Signal - shared look for the M3U tool pages. System fonts only, no external requests. */
+:root {
+  --concrete: #2b2b2b;
+  --panel: #1a1a1a;
+  --line: #e6e6e6;
+  --ink: #000000;
+  --text: #ffffff;
+  --muted: #bdbdbd;
+  --orange: #ff6a1a;
+  --pink: #ff4fa3;
+  --violet: #a77bff;
+  --green: #3ddc84;
+  --yellow: #ffd100;
+  --red: #ff3b30;
+  --blue: #3d8bff;
+  --bw: 4px;
+  --mono: ui-monospace, Consolas, "Courier New", monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 24px 10px 60px;
+  font-family: var(--mono);
+  font-size: 14px;
+  background: var(--concrete);
+  color: var(--text);
+}
+h1 {
+  margin: -20px -20px 18px;
+  padding: 8px 14px;
+  background: var(--yellow);
+  color: var(--ink);
+  border-bottom: var(--bw) solid var(--yellow);
+  font-size: 1.9em;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-align: left;
+}
+.container {
+  position: relative;
+  width: 660px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  background: var(--panel);
+  border: var(--bw) solid var(--line);
+  box-shadow: 10px 10px 0 var(--ink);
+  text-align: left;
+}
+.input-group { display: flex; align-items: center; gap: 10px; }
+textarea, input, select {
+  flex-grow: 1;
+  min-width: 0;
+  margin: 5px 0;
+  padding: 10px;
+  border: var(--bw) solid var(--line);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--text);
+  font: inherit;
+}
+input[type='file']::file-selector-button {
+  margin-right: 10px;
+  padding: 6px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  background: var(--orange);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+  -webkit-text-stroke: 0.6px currentColor;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+input[type='file']::file-selector-button:hover { filter: brightness(1.1); }
+::placeholder { color: var(--muted); opacity: 1; }
+textarea { resize: vertical; }
+:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+textarea:focus, input:focus, select:focus { border-color: var(--yellow); }
+
+/* Buttons: one colour per role, set through --c */
+button {
+  --c: var(--orange);
+  flex: none;
+  width: 130px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border: var(--bw) solid var(--ink);
+  border-radius: 0;
+  background: var(--c);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95em;
+  font-weight: 900;
+  -webkit-text-stroke: 0.6px currentColor;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: uppercase;
+  box-shadow: 3px 3px 0 var(--text);
+  cursor: pointer;
+}
+button:hover { filter: brightness(1.08); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--text); }
+button:active { box-shadow: none; transform: translate(3px, 3px); }
+button:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; filter: grayscale(0.6); transform: none; }
+
+#fileCheckButton, #fileButton { --c: var(--orange); }
+#urlCheckButton, #urlButton { --c: var(--pink); }
+#textCheckButton, #textButton { --c: var(--violet); }
+.pause-button { display: none; --c: var(--blue); }
+.cancel-button { display: none; --c: var(--red); }
+
+#downloadButton {
+  display: none;
+  width: 260px;
+  height: 48px;
+  margin: 10px auto;
+  --c: var(--green);
+}
+#downloadReportButton, #downloadDeadButton {
+  display: none;
+  width: 260px;
+  height: 48px;
+  margin: 0 auto 10px auto;
+  --c: var(--yellow);
+}
+#viewImagesButton {
+  display: none;
+  width: 260px;
+  height: 48px;
+  margin: 0 auto 10px auto;
+  --c: var(--line);
+}
+.download-row { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+
+/* Output area */
+.output-wrapper {
+  position: relative;
+  width: 100%;
+  height: 110px;
+  min-width: 0;
+  min-height: 80px;
+  max-width: 100%;
+  max-height: 80vh;
+  margin: 5px 0 10px 0;
+  border: var(--bw) solid var(--line);
+  background: var(--ink);
+  resize: vertical;
+  overflow: auto;
+}
+.output-wrapper textarea#output {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85em;
+  resize: none;
+  overflow: auto;
+  display: block;
+}
+#summaryLine {
+  min-height: 1em;
+  margin: 5px 0 10px 0;
+  font-size: 0.85em;
+  color: var(--muted);
+  text-align: left;
+}
+
+/* Advanced settings panel */
+.advanced-settings {
+  margin: 5px 0 10px 0;
+  border: var(--bw) solid var(--line);
+  background: var(--ink);
+  text-align: left;
+}
+.advanced-settings summary {
+  padding: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.advanced-settings summary:hover { background: #222222; }
+.advanced-settings .settings-grid {
+  padding: 10px;
+  border-top: var(--bw) solid var(--line);
+  background: var(--panel);
+}
+.advanced-settings .settings-grid { display: flex; align-items: center; gap: 25px; }
+.settings-column { display: flex; }
+.numeric-column { gap: 10px; }
+.checkbox-column { flex-direction: column; gap: 8px; }
+.advanced-settings .setting-item { display: flex; flex-direction: column; font-size: 0.9em; }
+.advanced-settings .setting-item.checkbox-item { flex-direction: row; align-items: center; gap: 6px; }
+.advanced-settings input[type='number'] { width: 80px; flex-grow: 0; margin: 3px 0 0 0; padding: 6px; }
+.advanced-settings input[type='checkbox'] { flex-grow: 0; width: auto; margin: 0; padding: 0; accent-color: var(--orange); }
+
+.output-wrapper p#currentChecking {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 10px;
+  border: none;
+  background: var(--ink);
+  text-align: left;
+  white-space: normal;
+  overflow: hidden;
+  display: none;
+}
+.output-wrapper p#currentChecking .checking-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.advanced-settings .settings-grid.stack { flex-direction: column; align-items: stretch; gap: 8px; }
+.advanced-settings .group-title { margin-bottom: 2px; font-size: 0.8em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.advanced-settings .note { font-size: 0.75em; color: var(--muted); line-height: 1.3; }
+.advanced-settings input[type='text'],
+.advanced-settings input[type='password'],
+.advanced-settings select { width: 100%; margin: 3px 0 0 0; padding: 6px; }
+
+/* Image viewer */
+#viewer { display: none; margin-top: 12px; text-align: left; }
+.viewer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.85em; color: var(--muted); }
+.viewer-bar select { flex-grow: 0; width: auto; margin: 0; padding: 6px; }
+.viewer-row { display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-top: 2px solid var(--line); }
+.viewer-num { flex: 0 0 34px; text-align: center; font-size: 0.8em; color: var(--muted); }
+.viewer-thumb { flex: 0 0 85px; width: 85px; height: 85px; display: flex; align-items: center; justify-content: center; border: var(--bw) solid var(--line); background: var(--ink); overflow: hidden; }
+.viewer-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.viewer-thumb svg { width: 70px; height: 70px; }
+.viewer-text { min-width: 0; flex-grow: 1; }
+.viewer-title { font-size: 1.1em; font-weight: 800; color: var(--text); overflow-wrap: anywhere; }
+.viewer-url { font-size: 0.8em; color: var(--muted); overflow-wrap: anywhere; }
+.viewer-note { margin-top: 2px; font-size: 0.7em; color: var(--muted); }
+#viewerMore { display: none; width: 260px; height: 44px; margin: 10px auto 0 auto; --c: var(--line); }
+@media (max-width: 560px) {
+  .input-group { flex-wrap: wrap; }
+  .input-group > input, .input-group > textarea { flex: 1 1 100%; }
+  .input-group > button { flex: 1 1 90px; width: auto; }
+  .settings .input-group { flex-wrap: nowrap; }
+  .settings .input-group > select { flex: 1 1 auto; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>M3U Logo Embedder</h1>
+
+    <div class="input-group">
+        <input type="file" id="fileInput" accept=".m3u,.m3u8">
+        <button id="fileCheckButton">Embed local file</button>
+        <button id="filePauseButton" class="pause-button">Pause</button>
+        <button id="fileCancelButton" class="cancel-button">Cancel</button>
+    </div>
+
+    <div class="input-group">
+        <input type="text" id="urlInput" placeholder="Enter online M3U URL...">
+        <button id="urlCheckButton">Embed Online Link</button>
+        <button id="urlPauseButton" class="pause-button">Pause</button>
+        <button id="urlCancelButton" class="cancel-button">Cancel</button>
+    </div>
+
+    <div class="input-group">
+        <textarea id="textInput" rows="3" placeholder="Paste M3U content here..."></textarea>
+        <button id="textCheckButton">Embed Pasted streams</button>
+        <button id="textPauseButton" class="pause-button">Pause</button>
+        <button id="textCancelButton" class="cancel-button">Cancel</button>
+    </div>
+
+    <details class="advanced-settings">
+        <summary>Advanced settings (concurrency, timeout, retries, sources)</summary>
+
+        <div class="settings-grid">
+
+            <div class="settings-column numeric-column">
+                <div class="setting-item">
+                    <label for="concurrencyInput">Concurrency</label>
+                    <input type="number" id="concurrencyInput" min="1" max="30" value="5">
+                </div>
+                <div class="setting-item">
+                    <label for="timeoutInput">Timeout (ms)</label>
+                    <input type="number" id="timeoutInput" min="1000" max="120000" step="500" value="12000">
+                </div>
+            </div>
+
+            <div class="settings-column checkbox-column">
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="retryCheckbox" checked>
+                    <label for="retryCheckbox">Retry a failed lookup once</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="dedupeCheckbox" checked>
+                    <label for="dedupeCheckbox">Skip re-searching duplicate titles</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="excludeCheckbox">
+                    <label for="excludeCheckbox">Exclude entries without a logo from the output</label>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="settings-grid">
+
+            <div class="settings-column checkbox-column">
+                <div class="group-title">Logo sources (tried in this order)</div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcRadioCheckbox" checked>
+                    <label for="srcRadioCheckbox">Radio Browser database (by stream URL, then by name)</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcTuneinCheckbox" checked>
+                    <label for="srcTuneinCheckbox">TuneIn station logos</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcWikidataCheckbox" checked>
+                    <label for="srcWikidataCheckbox">Wikidata logos (by station name)</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcWikiCheckbox" checked>
+                    <label for="srcWikiCheckbox">Wikipedia article image (English, by station name)</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcCommonsCheckbox" checked>
+                    <label for="srcCommonsCheckbox">Wikimedia Commons logo files</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcWikiOtherCheckbox" checked>
+                    <label for="srcWikiOtherCheckbox">Wikipedia article images in other languages</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcAppleCheckbox" checked>
+                    <label for="srcAppleCheckbox">Apple podcast and app artwork (slow, Apple limits requests)</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcSearchCheckbox" checked>
+                    <label for="srcSearchCheckbox">Image search API results (optional, needs an API key below)</label>
+                </div>
+                <div class="setting-item checkbox-item">
+                    <input type="checkbox" id="srcFaviconCheckbox" checked>
+                    <label for="srcFaviconCheckbox">Website favicons: station homepage and stream host (last resort)</label>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="settings-grid stack">
+
+            <div class="setting-item">
+                <label for="searchProviderSelect">Image search API</label>
+                <select id="searchProviderSelect">
+                    <option value="brave">Brave Search API</option>
+                    <option value="serper">Serper.dev (Google images)</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <label for="searchKeyInput">API key</label>
+                <input type="password" id="searchKeyInput" autocomplete="off" placeholder="paste your API key">
+                <div class="note">
+                    Optional: most people can leave this empty, every other source works
+                    without a key. If you paste one, it is sent only to the selected
+                    provider and is gone when you reload the page.
+                </div>
+            </div>
+
+        </div>
+    </details>
+
+    <div class="output-wrapper">
+        <textarea id="output" rows="10" readonly></textarea>
+        <p id="currentChecking"></p>
+    </div>
+
+    <p id="summaryLine"></p>
+
+    <div class="download-row">
+        <button id="downloadButton">Download Playlist With Logos</button>
+        <button id="viewImagesButton">View Images</button>
+        <button id="downloadReportButton">Download Logo Report</button>
+    </div>
+
+    <div id="viewer">
+        <div class="viewer-bar">
+            <label for="viewerFilter">Show</label>
+            <select id="viewerFilter">
+                <option value="all">All entries</option>
+                <option value="found">Only with a logo</option>
+                <option value="missing">Only without a logo</option>
+            </select>
+            <select id="viewerSource"></select>
+            <span id="viewerCount"></span>
+        </div>
+        <div id="viewerList"></div>
+        <button id="viewerMore">Show more</button>
+    </div>
+
+    <a id="downloadLink" style="display:none"></a>
+    <a id="downloadReportLink" style="display:none"></a>
+
+</div>
+
+<script>
+(() => {
+  'use strict';
+  /* ============================================================
+   SHARED BASE
+   Identical in M3U-link-checker, M3U-Metadata-embedder and
+   m3u-logo-embedder. A tool only has to provide:
+     LOCKED_INPUT_IDS, resetOutput(), processLinks(text, type, sourceName)
+   ============================================================ */
+
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  /* one run at a time: the other start buttons are disabled while it is going */
+  const run = { cancelled: false, paused: false };
+
+  /* AbortControllers of every request that is currently in flight */
+  const inflight = new Set();
+
+  const progress = { done: 0, total: 0 };
+
+  function beginRun() {
+    run.cancelled = false;
+    run.paused = false;
+  }
+
+  /*
+   * Starts a tracked request with a timeout. Call finish() when done:
+   * it also aborts, which closes a response body that was not read to
+   * the end (a live radio stream would otherwise keep downloading).
+   */
+  function startRequest(timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    inflight.add(controller);
+
+    return {
+      signal: controller.signal,
+      finish() {
+        clearTimeout(timer);
+        inflight.delete(controller);
+        controller.abort();
+      },
+    };
+  }
+
+  async function waitWhilePaused() {
+    while (run.paused && !run.cancelled) {
+      await sleep(200);
+    }
+  }
+
+  /* runs worker(item) for every item, at most `concurrency` at a time */
+  async function runPool(items, concurrency, worker) {
+    const active = new Set();
+
+    for (const item of items) {
+      if (run.cancelled) {
+        break;
+      }
+
+      const task = (async () => {
+        try {
+          await worker(item);
+        } catch (error) {
+          console.error(error);
+        } finally {
+          active.delete(task);
+        }
+      })();
+
+      active.add(task);
+
+      if (active.size >= concurrency) {
+        await Promise.race(active);
+      }
+    }
+
+    await Promise.allSettled(active);
+  }
+
+  /* ---------------- settings ---------------- */
+
+  /* default, min and max come from the input element itself */
+  function readNumber(id) {
+    const el = $(id);
+    const n = parseInt(el.value, 10);
+    const value = Number.isFinite(n) ? n : Number(el.defaultValue);
+
+    return Math.min(Number(el.max), Math.max(Number(el.min), value));
+  }
+
+  /* ---------------- UI state ---------------- */
+
+  function setCurrentChecking(message) {
+    const el = $('currentChecking');
+
+    el.textContent = '';
+
+    String(message)
+      .split('\n')
+      .forEach((line) => {
+        const lineEl = document.createElement('div');
+
+        lineEl.className = 'checking-line';
+        lineEl.textContent = line;
+        lineEl.title = line;
+
+        el.appendChild(lineEl);
+      });
+  }
+
+  function setDisplayStates(checkingInProgress) {
+    $('output').style.display = checkingInProgress ? 'none' : 'block';
+    $('currentChecking').style.display = checkingInProgress ? 'block' : 'none';
+  }
+
+  function toggleButtons(type, checking) {
+    $(`${type}CheckButton`).style.display = checking ? 'none' : 'flex';
+    $(`${type}CancelButton`).style.display = checking ? 'flex' : 'none';
+
+    const pauseButton = $(`${type}PauseButton`);
+
+    pauseButton.style.display = checking ? 'flex' : 'none';
+
+    if (checking) {
+      pauseButton.textContent = 'Pause';
+    }
+
+    setDisplayStates(checking);
+
+    ['file', 'url', 'text']
+      .filter((t) => t !== type)
+      .forEach((other) => {
+        $(`${other}CheckButton`).disabled = checking;
+      });
+
+    LOCKED_INPUT_IDS.forEach((id) => {
+      $(id).disabled = checking;
+    });
+  }
+
+  function showProgress(heading, title, url, summary) {
+    progress.done++;
+
+    setCurrentChecking(
+      `${heading} ${progress.done} of ${progress.total}:` +
+        (title ? `\n${title}` : '') +
+        `\n${url}`,
+    );
+
+    $('summaryLine').textContent = summary(progress.done, progress.total);
+  }
+
+  /* ---------------- downloads ---------------- */
+
+  function hideDownload(buttonId) {
+    $(buttonId).style.display = 'none';
+  }
+
+  /* puts `text` behind a hidden <a> and shows its button; frees the previous blob */
+  function setDownload(buttonId, linkId, text, mime, filename) {
+    const link = $(linkId);
+
+    if (link.href.startsWith('blob:')) {
+      URL.revokeObjectURL(link.href);
+    }
+
+    link.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    link.download = filename;
+
+    $(buttonId).style.display = 'block';
+  }
+
+  function clickLink(linkId) {
+    $(linkId).click();
+  }
+
+  /* ---------------- file names ---------------- */
+
+  function sourceNameFromUrl(input) {
+    try {
+      const last = new URL(input).pathname.split('/').pop();
+
+      return (last && decodeURIComponent(last)) || 'playlist.m3u';
+    } catch {
+      return 'playlist.m3u';
+    }
+  }
+
+  /* "my list.m3u8" + "_checked" -> "my list_checked.m3u8"; anything else gets .m3u */
+  function outputName(sourceName, suffix) {
+    const match = /\.(m3u8?)$/i.exec(sourceName);
+    const stem = match ? sourceName.slice(0, -match[0].length) : sourceName;
+
+    return `${stem}${suffix}.${match ? match[1].toLowerCase() : 'm3u'}`;
+  }
+
+  function reportName(sourceName, suffix, reportSuffix) {
+    return outputName(sourceName, suffix).replace(/\.m3u8?$/i, '') + reportSuffix;
+  }
+
+  /* ============================================================
+   M3U PARSING
+   An entry is everything that belongs to one stream: its #EXTINF
+   line, any extra #-lines (#EXTGRP, #EXTVLCOPT...) and the URL.
+   ============================================================ */
+
+  /* split at the first comma that is not inside quotes */
+  function splitExtinf(line) {
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        return { prefix: line.slice(0, i), title: line.slice(i + 1).trim() };
+      }
+    }
+
+    return { prefix: line, title: '' };
+  }
+
+  const isHttpUrl = (s) => /^https?:\/\//i.test(s || '');
+
+  function parseM3U(text) {
+    const lines = text
+      .replace(/^\uFEFF/, '')
+      .split(/\r?\n/)
+      .map((l) => l.trim());
+
+    let extm3u = '#EXTM3U';
+    let sawEntryOrHeader = false;
+
+    const header = [];
+    const entries = [];
+
+    let pendingExtinf = null;
+    let pendingExtra = [];
+
+    const flush = (url) => {
+      entries.push({ extinf: pendingExtinf, extra: pendingExtra, url });
+
+      pendingExtinf = null;
+      pendingExtra = [];
+    };
+
+    for (const line of lines) {
+      if (line === '') {
+        continue;
+      }
+
+      if (/^#EXTM3U/i.test(line)) {
+        /* keep attributes such as url-tvg="..." from the first header line */
+        if (!sawEntryOrHeader) {
+          extm3u = line;
+        }
+
+        continue;
+      }
+
+      sawEntryOrHeader = true;
+
+      if (/^#EXTINF/i.test(line)) {
+        if (pendingExtinf) {
+          flush(null); /* EXTINF without a URL: keep it, do not lose it */
+        }
+
+        pendingExtinf = line;
+
+        continue;
+      }
+
+      if (line.startsWith('#')) {
+        if (!entries.length && !pendingExtinf) {
+          header.push(line);
+        } else {
+          pendingExtra.push(line);
+        }
+
+        continue;
+      }
+
+      flush(line);
+    }
+
+    if (pendingExtinf) {
+      flush(null);
+    }
+
+    entries.forEach((entry) => {
+      entry.title = entry.extinf ? splitExtinf(entry.extinf).title : '';
+    });
+
+    return { extm3u, header, entries };
+  }
+
+  /* the lines of one entry, optionally with a replacement #EXTINF */
+  function renderEntry(entry, extinfOverride) {
+    const out = [];
+
+    if (entry.extinf) {
+      out.push(extinfOverride || entry.extinf);
+    }
+
+    out.push(...entry.extra);
+
+    if (entry.url) {
+      out.push(entry.url);
+    }
+
+    return out;
+  }
+
+  /* ============================================================
+   ONLINE PLAYLIST FETCH
+   ============================================================ */
+
+  /* github.com/.../raw/... redirects without CORS headers; go straight to raw.githubusercontent.com */
+  function normalizeOnlineM3UUrl(inputUrl) {
+    let url;
+
+    try {
+      url = new URL(inputUrl);
+    } catch {
+      throw new Error('Invalid URL.');
+    }
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('Only HTTP and HTTPS URLs are supported.');
+    }
+
+    if (url.hostname.toLowerCase() === 'github.com') {
+      const parts = url.pathname.split('/').filter(Boolean);
+
+      if (parts.length >= 5 && parts[2].toLowerCase() === 'raw') {
+        const [owner, repo, ...rest] = parts.filter((_, i) => i !== 2);
+
+        return `https://raw.githubusercontent.com/${owner}/${repo}/${rest.join('/')}${url.search}`;
+      }
+    }
+
+    return url.href;
+  }
+
+  const looksLikeM3U = (text) =>
+    /^\s*#EXT(M3U|INF)/i.test(text) || /^\s*[a-z][a-z0-9+.-]*:\/\//im.test(text);
+
+  async function fetchOnlineM3U(inputUrl, signal) {
+    const normalized = normalizeOnlineM3UUrl(inputUrl);
+    const urlsToTry = normalized === inputUrl ? [inputUrl] : [normalized, inputUrl];
+
+    let lastError = null;
+
+    for (const url of urlsToTry) {
+      try {
+        const response = await fetch(url, { signal, cache: 'no-store', redirect: 'follow' });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+
+        const text = await response.text();
+
+        if (!text.trim()) {
+          throw new Error('The fetched playlist is empty.');
+        }
+
+        if (!looksLikeM3U(text)) {
+          throw new Error('The fetched content does not appear to be an M3U playlist.');
+        }
+
+        return text;
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          throw error;
+        }
+
+        lastError = error;
+      }
+    }
+
+    throw new Error(
+      `Unable to fetch the playlist. ${lastError.message} ` +
+        'The remote server may block browser CORS requests.',
+    );
+  }
+
+  /* ============================================================
+   START BUTTONS, PAUSE, CANCEL
+   ============================================================ */
+
+  async function startFile() {
+    const file = $('fileInput').files[0];
+
+    if (!file) {
+      return alert('Please upload an M3U file.');
+    }
+
+    await processLinks(await file.text(), 'file', file.name);
+  }
+
+  async function startUrl() {
+    const input = $('urlInput').value.trim();
+
+    if (!input) {
+      return alert('Please enter an online M3U URL.');
+    }
+
+    let normalized;
+
+    try {
+      normalized = normalizeOnlineM3UUrl(input);
+    } catch (error) {
+      return alert(`Error fetching online M3U file: ${error.message}`);
+    }
+
+    beginRun();
+    toggleButtons('url', true); /* shows Cancel while the download is running */
+
+    setCurrentChecking(
+      normalized !== input
+        ? `Fetching GitHub raw playlist...\n${normalized}`
+        : 'Fetching online M3U file...',
+    );
+
+    const controller = new AbortController();
+
+    inflight.add(controller);
+
+    let text;
+
+    try {
+      text = await fetchOnlineM3U(input, controller.signal);
+    } catch (error) {
+      toggleButtons('url', false);
+      resetOutput();
+
+      if (error.name === 'AbortError') {
+        $('summaryLine').textContent = 'Online M3U fetch cancelled.';
+      } else {
+        $('summaryLine').textContent = `Error fetching online M3U file: ${error.message}`;
+        alert(`Error fetching online M3U file: ${error.message}`);
+      }
+
+      return;
+    } finally {
+      inflight.delete(controller);
+    }
+
+    await processLinks(text, 'url', sourceNameFromUrl(input));
+  }
+
+  async function startText() {
+    const text = $('textInput').value;
+
+    if (!text.trim()) {
+      return alert('Please paste M3U content.');
+    }
+
+    await processLinks(text, 'text', 'pasted_streams.m3u');
+  }
+
+  function togglePause(type) {
+    run.paused = !run.paused;
+
+    $(`${type}PauseButton`).textContent = run.paused ? 'Resume' : 'Pause';
+
+    const summary = $('summaryLine');
+    const prefix = 'Paused — click Resume to continue. ';
+
+    if (run.paused) {
+      summary.textContent = prefix + summary.textContent;
+    } else if (summary.textContent.startsWith(prefix)) {
+      summary.textContent = summary.textContent.slice(prefix.length);
+    }
+  }
+
+  function cancelProcess() {
+    run.cancelled = true;
+    run.paused = false;
+
+    inflight.forEach((controller) => controller.abort());
+  }
+
+  function wireControls(extra = {}) {
+    const starters = { file: startFile, url: startUrl, text: startText };
+
+    Object.entries(starters).forEach(([type, start]) => {
+      $(`${type}CheckButton`).addEventListener('click', start);
+      $(`${type}PauseButton`).addEventListener('click', () => togglePause(type));
+      $(`${type}CancelButton`).addEventListener('click', cancelProcess);
+    });
+
+    Object.entries(extra).forEach(([id, handler]) => $(id).addEventListener('click', handler));
+  }
+
+  let reqSeq = 0;
+
+  /* title -> { logo, source } or { reason } */
+  const titleResultCache = new Map();
+
+  /* image url -> true/false (loadable and big enough) */
+  const imageCheckCache = new Map();
+
+  const RB_HOSTS = [
+    'https://de1.api.radio-browser.info',
+    'https://nl1.api.radio-browser.info',
+    'https://at1.api.radio-browser.info',
+  ];
+
+  let rbHost = null;
+  let rbDeadUntil = 0;
+
+  let searchApiError = null;
+
+  /* radio-browser answers by request path (also read by the favicon source) */
+  const rbCache = new Map();
+
+  /* per source: how often it worked / failed to even connect */
+  const sourceHealth = {};
+
+  /* Apple allows about 20 requests a minute: next free slot */
+  let appleNextAt = 0;
+
+  /* rows for the image viewer, in output order */
+  let viewerItems = [];
+  let viewerShown = 0;
+  const VIEWER_PAGE = 100;
+
+  const WIKI_LANGS = ['de', 'fr', 'es', 'it', 'pt', 'ru', 'tr', 'nl', 'pl', 'ar', 'fa'];
+
+  /* ============================================================
+   TITLE HELPERS
+   ============================================================ */
+
+  const STOP_WORDS = new Set([
+    'radio',
+    'fm',
+    'am',
+    'the',
+    'online',
+    'live',
+    'stream',
+    'streaming',
+    'hd',
+    'mp3',
+    'aac',
+    'ogg',
+    'opus',
+    'flac',
+    'kb',
+    'kbps',
+    'official',
+    'and',
+    'of',
+    'de',
+    'la',
+    'le',
+    'el',
+  ]);
+
+  function cleanTitle(raw) {
+    let t = String(raw || '');
+
+    t = t.replace(/\s+-\s+(?:mp3|aac|ogg|opus|wav|flac|webm|ts|m3u8|m4a)(?:\s+-\s+\d+kb)?$/i, '');
+
+    t = t.replace(/\s+-\s+\d+kb$/i, '');
+
+    t = t.replace(/\[[^\]]*\]/g, ' ');
+
+    t = t.replace(/\s+\d{2,3}\s?k(?:bps|b)?\b/i, ' ');
+
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
+  function normalizeText(s) {
+    return String(s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9\u0400-\u04ff\u0600-\u06ff\u4e00-\u9fff]+/g, ' ')
+      .trim();
+  }
+
+  function tokenSet(s) {
+    const all = normalizeText(s).split(' ').filter(Boolean);
+
+    const meaningful = all.filter((w) => !STOP_WORDS.has(w));
+
+    return new Set(meaningful.length ? meaningful : all);
+  }
+
+  function similarity(a, b) {
+    const A = tokenSet(a);
+    const B = tokenSet(b);
+
+    if (!A.size || !B.size) {
+      return 0;
+    }
+
+    let inter = 0;
+
+    A.forEach((w) => {
+      if (B.has(w)) inter++;
+    });
+
+    const jaccard = inter / (A.size + B.size - inter);
+
+    /*
+     * Every word of the playlist title appears in the candidate
+     * name (e.g. "Jazz FM" vs "Jazz FM London") is a strong match
+     * as long as the title has at least two meaningful words.
+     */
+    if (inter === A.size && A.size >= 2) {
+      return Math.max(jaccard, 0.8);
+    }
+
+    return jaccard;
+  }
+
+  /* share of the playlist title's words that the candidate name also contains */
+  function coverage(a, b) {
+    const A = tokenSet(a);
+    const B = tokenSet(b);
+
+    if (!A.size) {
+      return 0;
+    }
+
+    let inter = 0;
+
+    A.forEach((w) => {
+      if (B.has(w)) inter++;
+    });
+
+    return inter / A.size;
+  }
+
+  /* short descriptions that say "this is a radio station" in the main languages */
+  const RADIO_DESC = new RegExp(
+    'radio|radyo|r\u00e1dio|\u0440\u0430\u0434\u0438\u043e|\u03c1\u03b1\u03b4\u03b9\u03bf|' +
+      '\u0631\u0627\u062f\u064a\u0648|\u0631\u0627\u062f\u06cc\u0648|\u0625\u0630\u0627\u0639\u0629|' +
+      'broadcast|station|sender|emisora|\u00e9metteur|stazione|zender|stacja|' +
+      'rozg\u0142o|rundfunk|h\u00f6rfunk|network|channel|cha\u00eene|\\bfm\\b',
+    'i',
+  );
+
+  function getExistingLogo(prefix) {
+    const m = prefix.match(/\b(?:tvg-logo|logo)\s*=\s*"([^"]*)"/i);
+
+    return m ? m[1].trim() : '';
+  }
+
+  function applyLogo(extinfLine, logoUrl) {
+    const { prefix, title } = splitExtinf(extinfLine);
+
+    const safeUrl = String(logoUrl).replace(/"/g, '%22').replace(/\s/g, '%20');
+
+    let newPrefix;
+
+    if (/\btvg-logo\s*=\s*"[^"]*"/i.test(prefix)) {
+      newPrefix = prefix.replace(/\btvg-logo\s*=\s*"[^"]*"/i, `tvg-logo="${safeUrl}"`);
+    } else {
+      newPrefix = `${prefix} tvg-logo="${safeUrl}"`;
+    }
+
+    return `${newPrefix},${title}`;
+  }
+  /* ============================================================
+   NETWORK HELPERS
+   ============================================================ */
+
+  async function fetchText(url, opts, timeoutMs) {
+    const request = startRequest(timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        ...(opts || {}),
+        signal: request.signal,
+        cache: 'no-store',
+        redirect: 'follow',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return await response.text();
+    } finally {
+      request.finish();
+    }
+  }
+
+  function noteSource(name, ok) {
+    const h = sourceHealth[name] || (sourceHealth[name] = { ok: 0, fails: 0 });
+
+    if (ok) h.ok++;
+    else h.fails++;
+  }
+
+  /* a source that never connected after a few tries is skipped for the rest of the run */
+  function sourceDead(name) {
+    const h = sourceHealth[name];
+
+    return !!h && h.ok === 0 && h.fails >= 3;
+  }
+
+  async function getJson(name, url, settings, ctx) {
+    if (sourceDead(name)) {
+      return null;
+    }
+
+    try {
+      const data = JSON.parse(await fetchText(url, {}, settings.timeout));
+
+      noteSource(name, true);
+
+      return data;
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        if (!run.cancelled) ctx.hadError = true;
+
+        return null;
+      }
+
+      if (e instanceof TypeError) {
+        /* could not connect (offline, blocked, or no CORS) */
+        noteSource(name, false);
+
+        if (!sourceDead(name)) ctx.hadError = true;
+
+        return null;
+      }
+
+      ctx.hadError = true;
+
+      return null;
+    }
+  }
+
+  /*
+   * JSONP: loads the answer through a <script> tag, which browsers
+   * allow from anywhere (including a file opened from the hard drive).
+   */
+  function jsonpRequest(url, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const cb = '__logoJsonp' + ++reqSeq;
+
+      const script = document.createElement('script');
+
+      let done = false;
+
+      const timer = setTimeout(() => {
+        if (done) return;
+
+        done = true;
+
+        script.remove();
+
+        /* the callback stays defined so a late reply is swallowed */
+        reject(new Error('timeout'));
+      }, timeoutMs);
+
+      window[cb] = (data) => {
+        delete window[cb];
+
+        if (done) return;
+
+        done = true;
+
+        clearTimeout(timer);
+
+        script.remove();
+
+        resolve(data);
+      };
+
+      script.onerror = () => {
+        if (done) return;
+
+        done = true;
+
+        clearTimeout(timer);
+
+        script.remove();
+
+        delete window[cb];
+
+        reject(new TypeError('script failed'));
+      };
+
+      script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+
+      document.head.appendChild(script);
+    });
+  }
+
+  function loadImage(url, timeoutMs) {
+    return new Promise((resolve) => {
+      const img = new Image();
+
+      let settled = false;
+
+      const finish = (value) => {
+        if (settled) return;
+
+        settled = true;
+
+        clearTimeout(timer);
+
+        img.onload = null;
+        img.onerror = null;
+
+        resolve(value);
+      };
+
+      const timer = setTimeout(() => finish(null), timeoutMs);
+
+      img.referrerPolicy = 'no-referrer';
+
+      img.onload = () =>
+        finish({
+          w: img.naturalWidth,
+          h: img.naturalHeight,
+        });
+
+      img.onerror = () => finish(null);
+
+      img.src = url;
+    });
+  }
+
+  async function isUsableLogo(url, minSize, timeoutMs) {
+    if (!/^https?:\/\//i.test(url)) {
+      return false;
+    }
+
+    const key = `${minSize}|${url}`;
+
+    if (imageCheckCache.has(key)) {
+      return imageCheckCache.get(key);
+    }
+
+    const info = await loadImage(url, timeoutMs);
+
+    let ok = false;
+
+    if (info && info.w > 0 && info.h > 0) {
+      const ratio = info.w / info.h;
+
+      ok = Math.min(info.w, info.h) >= minSize && ratio >= 0.33 && ratio <= 3;
+    }
+
+    imageCheckCache.set(key, ok);
+
+    return ok;
+  }
+
+  /* ============================================================
+   LOGO SOURCES
+   Each source returns an array of candidate image URLs.
+   ============================================================ */
+
+  function httpsFirst(url) {
+    if (/^http:\/\//i.test(url)) {
+      return [url.replace(/^http:\/\//i, 'https://'), url];
+    }
+
+    return [url];
+  }
+
+  function rbUrlPath(v) {
+    return `/json/stations/byurl?url=${encodeURIComponent(v)}`;
+  }
+
+  function rbNamePath(title) {
+    return (
+      `/json/stations/search?name=${encodeURIComponent(title)}` +
+      `&limit=12&hidebroken=true&order=votes&reverse=true`
+    );
+  }
+
+  function urlVariants(u) {
+    const variants = [u];
+
+    if (/^https:\/\//i.test(u)) {
+      variants.push(u.replace(/^https:/i, 'http:'));
+    } else if (/^http:\/\//i.test(u)) {
+      variants.push(u.replace(/^http:/i, 'https:'));
+    }
+
+    return variants;
+  }
+
+  async function rbGet(path, settings, ctx) {
+    if (rbCache.has(path)) {
+      return rbCache.get(path);
+    }
+
+    if (Date.now() < rbDeadUntil) {
+      ctx.hadError = true;
+      return [];
+    }
+
+    const hosts = rbHost ? [rbHost, ...RB_HOSTS.filter((h) => h !== rbHost)] : RB_HOSTS;
+
+    for (const host of hosts) {
+      if (run.cancelled) {
+        return [];
+      }
+
+      try {
+        const text = await fetchText(host + path, {}, settings.timeout);
+
+        rbHost = host;
+
+        const parsed = JSON.parse(text);
+
+        rbCache.set(path, parsed);
+
+        return parsed;
+      } catch {
+        /* try the next mirror */
+      }
+    }
+
+    /* every mirror failed: stop hammering them for a bit */
+    rbDeadUntil = Date.now() + 30000;
+
+    ctx.hadError = true;
+
+    return [];
+  }
+
+  async function candidatesRadioByUrl(entry, settings, ctx) {
+    for (const v of urlVariants(entry.url)) {
+      const list = await rbGet(rbUrlPath(v), settings, ctx);
+
+      const favicons = (Array.isArray(list) ? list : [])
+        .map((s) => (s.favicon || '').trim())
+        .filter(Boolean);
+
+      if (favicons.length) {
+        return favicons.flatMap(httpsFirst);
+      }
+
+      if (run.cancelled) {
+        return [];
+      }
+    }
+
+    return [];
+  }
+
+  async function candidatesRadioByName(title, settings, ctx) {
+    const list = await rbGet(rbNamePath(title), settings, ctx);
+
+    return (Array.isArray(list) ? list : [])
+      .filter((s) => (s.favicon || '').trim())
+      .map((s) => ({
+        favicon: s.favicon.trim(),
+        score: similarity(title, cleanTitle(s.name)),
+        votes: s.votes || 0,
+      }))
+      .filter((s) => s.score >= 0.6)
+      .sort((a, b) => b.score - a.score || b.votes - a.votes)
+      .slice(0, 4)
+      .flatMap((s) => httpsFirst(s.favicon));
+  }
+
+  async function candidatesWikipedia(title, settings, ctx, lang = 'en') {
+    const query = lang === 'en' ? title + ' radio' : title;
+
+    const url =
+      `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&origin=*` +
+      '&generator=search&gsrlimit=5' +
+      `&gsrsearch=${encodeURIComponent(query)}` +
+      '&prop=pageimages|description&piprop=thumbnail&pithumbsize=300&pilicense=any';
+
+    const data = await getJson('wikipedia-' + lang, url, settings, ctx);
+
+    const pages = data && data.query && data.query.pages ? Object.values(data.query.pages) : [];
+
+    return pages
+      .filter((p) => p.thumbnail && p.thumbnail.source)
+      .map((p) => {
+        const name = String(p.title || '').replace(/\s*\([^)]*\)\s*/g, ' ');
+
+        const desc = String(p.description || '');
+
+        const score = similarity(title, name);
+
+        /*
+         * Every word of the station name must be in the article title,
+         * and the article must be about a radio station. Without a
+         * description the article title itself has to say radio, FM, etc. This stops
+         * "... Hip Hop FM" from getting the picture of the hip hop genre.
+         */
+        const ok =
+          score >= 0.6 &&
+          coverage(title, name) >= 0.8 &&
+          (desc ? RADIO_DESC.test(desc) : RADIO_DESC.test(String(p.title || '')));
+
+        return {
+          src: p.thumbnail.source,
+          score: ok ? score : 0,
+          index: p.index || 99,
+        };
+      })
+      .filter((p) => p.score > 0)
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, 3)
+      .map((p) => p.src);
+  }
+
+  async function candidatesWikipediaOther(title, settings, ctx) {
+    const out = [];
+
+    for (const lang of WIKI_LANGS) {
+      if (run.cancelled) {
+        break;
+      }
+
+      out.push(...(await candidatesWikipedia(title, settings, ctx, lang)));
+
+      if (out.length >= 3) {
+        break;
+      }
+    }
+
+    return out;
+  }
+
+  async function candidatesWikidata(title, settings, ctx) {
+    const search = await getJson(
+      'wikidata',
+      'https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json' +
+        '&origin=*&language=en&uselang=en&type=item&limit=6' +
+        `&search=${encodeURIComponent(title)}`,
+      settings,
+      ctx,
+    );
+
+    const hits = ((search && search.search) || [])
+      .map((h) => ({
+        id: h.id,
+        score: similarity(title, h.label || ''),
+        cover: coverage(title, h.label || ''),
+      }))
+      .filter((h) => h.id && h.score >= 0.6 && h.cover >= 0.8)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4);
+
+    if (!hits.length) {
+      return [];
+    }
+
+    const ids = hits.map((h) => h.id);
+
+    const data = await getJson(
+      'wikidata',
+      'https://www.wikidata.org/w/api.php?action=wbgetentities&format=json' +
+        `&origin=*&props=claims&ids=${ids.join('|')}`,
+      settings,
+      ctx,
+    );
+
+    const out = [];
+
+    ids.forEach((id) => {
+      const claims = data && data.entities && data.entities[id] ? data.entities[id].claims : null;
+
+      if (!claims) return;
+
+      /* P154 = logo image, P8972 = small logo or icon */
+      ['P154', 'P8972'].forEach((prop) => {
+        (claims[prop] || []).forEach((c) => {
+          const v = c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value;
+
+          if (typeof v === 'string') {
+            out.push(
+              'https://commons.wikimedia.org/wiki/Special:FilePath/' +
+                encodeURIComponent(v) +
+                '?width=400',
+            );
+          }
+        });
+      });
+    });
+
+    return out;
+  }
+
+  async function candidatesCommons(title, settings, ctx) {
+    const data = await getJson(
+      'commons',
+      'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*' +
+        '&generator=search&gsrnamespace=6&gsrlimit=10' +
+        `&gsrsearch=${encodeURIComponent(title + ' logo')}` +
+        '&prop=imageinfo&iiprop=url|mime&iiurlwidth=400',
+      settings,
+      ctx,
+    );
+
+    const pages = data && data.query && data.query.pages ? Object.values(data.query.pages) : [];
+
+    return pages
+      .map((p) => {
+        const info = p.imageinfo && p.imageinfo[0];
+
+        if (!info || !/^image\//.test(info.mime || '')) {
+          return null;
+        }
+
+        const file = String(p.title || '')
+          .replace(/^File:/i, '')
+          .replace(/\.[a-z0-9]+$/i, '');
+
+        const hasLogoWord = /logo|logotype|emblem|icon|brand/i.test(file);
+
+        const name = file
+          .replace(/\b(logo|logotype|emblem|icon|brand|svg|png|jpe?g)\b/gi, ' ')
+          .replace(/[_\d]+/g, ' ');
+
+        const score = similarity(title, name);
+
+        if (score < 0.6 || coverage(title, name) < 0.8 || (!hasLogoWord && score < 0.8)) {
+          return null;
+        }
+
+        return {
+          src: info.thumburl || info.url,
+          score,
+          index: p.index || 99,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, 4)
+      .map((p) => p.src);
+  }
+
+  async function candidatesTuneIn(title, settings, ctx) {
+    const data = await getJson(
+      'tunein',
+      'https://opml.radiotime.com/Search.ashx?render=json' + `&query=${encodeURIComponent(title)}`,
+      settings,
+      ctx,
+    );
+
+    const items = [];
+
+    const walk = (nodes) =>
+      (nodes || []).forEach((n) => {
+        if (n && n.children) {
+          walk(n.children);
+        } else if (n) {
+          items.push(n);
+        }
+      });
+
+    walk(data && data.body);
+
+    return items
+      .filter((n) => n.image && n.text)
+      .map((n) => ({
+        src: n.image,
+        score: similarity(title, cleanTitle(n.text).replace(/\s*\([^)]*\)\s*/g, ' ')),
+        cover: coverage(title, cleanTitle(n.text).replace(/\s*\([^)]*\)\s*/g, ' ')),
+      }))
+      .filter((n) => n.score >= 0.6 && n.cover >= 0.8)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .flatMap((n) => httpsFirst(n.src));
+  }
+
+  async function appleQuery(media, title, settings, ctx) {
+    /* wait for our turn: Apple allows about 20 requests a minute */
+    const slot = Math.max(Date.now(), appleNextAt);
+
+    appleNextAt = slot + 3200;
+
+    let left = slot - Date.now();
+
+    while (left > 0 && !run.cancelled) {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(left, 250)));
+
+      left = slot - Date.now();
+    }
+
+    if (run.cancelled) {
+      return [];
+    }
+
+    let data;
+
+    try {
+      data = await jsonpRequest(
+        'https://itunes.apple.com/search?limit=15' +
+          `&media=${media}&entity=${media}` +
+          `&term=${encodeURIComponent(title)}`,
+        settings.timeout,
+      );
+
+      noteSource('apple', true);
+    } catch (e) {
+      if (e instanceof TypeError) {
+        noteSource('apple', false);
+      }
+
+      if (!sourceDead('apple')) ctx.hadError = true;
+
+      return [];
+    }
+
+    return ((data && data.results) || [])
+      .map((r) => {
+        const art = r.artworkUrl600 || r.artworkUrl512 || r.artworkUrl100 || '';
+
+        return {
+          src: art.replace(/\/\d+x\d+(bb|sr)?\.(jpg|png)$/i, '/600x600bb.$2'),
+          score: Math.max(
+            similarity(title, cleanTitle(r.collectionName || '')),
+            similarity(title, cleanTitle(r.trackName || '')),
+          ),
+          cover: Math.max(
+            coverage(title, cleanTitle(r.collectionName || '')),
+            coverage(title, cleanTitle(r.trackName || '')),
+          ),
+        };
+      })
+      .filter((r) => r.src && r.score >= 0.7 && r.cover >= 0.8)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map((r) => r.src);
+  }
+
+  async function candidatesApple(title, settings, ctx) {
+    if (sourceDead('apple')) {
+      return [];
+    }
+
+    const podcasts = await appleQuery('podcast', title, settings, ctx);
+
+    if (podcasts.length || sourceDead('apple')) {
+      return podcasts;
+    }
+
+    return appleQuery('software', title, settings, ctx);
+  }
+
+  async function candidatesImageSearch(title, settings, ctx) {
+    if (!settings.searchKey) {
+      return [];
+    }
+
+    const query = `"${title}" radio logo`;
+
+    let url;
+    let opts;
+
+    if (settings.searchProvider === 'serper') {
+      url = 'https://google.serper.dev/images';
+
+      opts = {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': settings.searchKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ q: query, num: 10 }),
+      };
+    } else {
+      url =
+        'https://api.search.brave.com/res/v1/images/search?q=' +
+        encodeURIComponent(query) +
+        '&count=10&safesearch=off';
+
+      opts = {
+        headers: {
+          Accept: 'application/json',
+          'X-Subscription-Token': settings.searchKey,
+        },
+      };
+    }
+
+    let data;
+
+    try {
+      data = JSON.parse(await fetchText(url, opts, settings.timeout));
+    } catch (e) {
+      ctx.hadError = true;
+
+      if (e.name !== 'AbortError' && !searchApiError) {
+        searchApiError =
+          String(e.message) === 'Failed to fetch'
+            ? 'request blocked (CORS or network) - see the browser console'
+            : e.message;
+      }
+
+      return [];
+    }
+
+    const urls = [];
+
+    if (settings.searchProvider === 'serper') {
+      (data.images || []).forEach((r) => {
+        if (r.imageUrl) urls.push(r.imageUrl);
+        if (r.thumbnailUrl) urls.push(r.thumbnailUrl);
+      });
+    } else {
+      (data.results || []).forEach((r) => {
+        if (r.properties && r.properties.url) urls.push(r.properties.url);
+        if (r.thumbnail && r.thumbnail.src) urls.push(r.thumbnail.src);
+      });
+    }
+
+    return urls.slice(0, 12);
+  }
+
+  function validHost(h) {
+    return (
+      !!h &&
+      h !== 'localhost' &&
+      h.includes('.') &&
+      !h.includes(':') &&
+      !/^\d{1,3}(\.\d{1,3}){3}$/.test(h)
+    );
+  }
+
+  function parentDomain(host) {
+    const parts = host.split('.');
+
+    if (parts.length <= 2) {
+      return host;
+    }
+
+    const last = parts[parts.length - 1];
+    const second = parts[parts.length - 2];
+
+    const keep =
+      last.length === 2 && ['co', 'com', 'org', 'net', 'gov', 'edu', 'ac'].includes(second) ? 3 : 2;
+
+    return parts.slice(-keep).join('.');
+  }
+
+  function faviconUrlsForHost(host) {
+    return [
+      `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=256`,
+      `https://${host}/apple-touch-icon.png`,
+      `https://${host}/favicon.ico`,
+    ];
+  }
+
+  async function candidatesWebsiteFavicons(entry, title, settings, ctx) {
+    const hosts = [];
+
+    const add = (u) => {
+      try {
+        const h = new URL(u).hostname.toLowerCase();
+
+        if (validHost(h) && !hosts.includes(h)) {
+          hosts.push(h);
+        }
+      } catch {
+        /* not a usable URL */
+      }
+    };
+
+    /* station homepages that radio-browser already told us about */
+    if (settings.srcRadio) {
+      urlVariants(entry.url).forEach((v) => {
+        const list = rbCache.get(rbUrlPath(v));
+
+        (Array.isArray(list) ? list : []).forEach((st) => add(st.homepage));
+      });
+
+      const named = rbCache.get(rbNamePath(title));
+
+      (Array.isArray(named) ? named : [])
+        .filter((st) => similarity(title, cleanTitle(st.name)) >= 0.6)
+        .forEach((st) => add(st.homepage));
+    }
+
+    add(entry.url);
+
+    try {
+      const h = new URL(entry.url).hostname.toLowerCase();
+
+      if (validHost(h)) {
+        add('https://' + parentDomain(h));
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return hosts.slice(0, 5).flatMap(faviconUrlsForHost);
+  }
+
+  /* ============================================================
+   FIND ONE LOGO
+   ============================================================ */
+
+  async function trySource(label, getCandidates, minSize, settings, ctx, parallel = 1) {
+    if (run.cancelled) {
+      return null;
+    }
+
+    let candidates;
+
+    try {
+      candidates = await getCandidates();
+    } catch {
+      ctx.hadError = true;
+      return null;
+    }
+
+    const seen = new Set();
+
+    const unique = [];
+
+    for (const url of candidates) {
+      if (url && !seen.has(url)) {
+        seen.add(url);
+
+        unique.push(url);
+      }
+    }
+
+    for (let i = 0; i < unique.length; i += parallel) {
+      if (run.cancelled) {
+        return null;
+      }
+
+      const chunk = unique.slice(i, i + parallel);
+
+      const oks = await Promise.all(chunk.map((u) => isUsableLogo(u, minSize, settings.timeout)));
+
+      const k = oks.indexOf(true);
+
+      if (k >= 0) {
+        return {
+          logo: chunk[k],
+          source: label,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /*
+   * The order sources are tried in. `minSize` is the smallest side (px)
+   * an image must have; `enabled` decides whether the source runs.
+   */
+  const LOGO_SOURCES = [
+    {
+      label: 'radio-browser (stream url)',
+      enabled: (s) => s.srcRadio,
+      candidates: (entry, title, s, ctx) => candidatesRadioByUrl(entry, s, ctx),
+      minSize: 40,
+    },
+    {
+      label: 'radio-browser (name)',
+      enabled: (s) => s.srcRadio,
+      candidates: (entry, title, s, ctx) => candidatesRadioByName(title, s, ctx),
+      minSize: 40,
+    },
+    {
+      label: 'tunein',
+      health: 'tunein',
+      enabled: (s) => s.srcTunein,
+      candidates: (entry, title, s, ctx) => candidatesTuneIn(title, s, ctx),
+      minSize: 64,
+    },
+    {
+      label: 'wikidata',
+      health: 'wikidata',
+      enabled: (s) => s.srcWikidata,
+      candidates: (entry, title, s, ctx) => candidatesWikidata(title, s, ctx),
+      minSize: 48,
+    },
+    {
+      label: 'wikipedia',
+      enabled: (s) => s.srcWiki,
+      candidates: (entry, title, s, ctx) => candidatesWikipedia(title, s, ctx),
+      minSize: 48,
+    },
+    {
+      label: 'wikimedia commons',
+      health: 'commons',
+      enabled: (s) => s.srcCommons,
+      candidates: (entry, title, s, ctx) => candidatesCommons(title, s, ctx),
+      minSize: 48,
+    },
+    {
+      label: 'wikipedia (other languages)',
+      enabled: (s) => s.srcWikiOther,
+      candidates: (entry, title, s, ctx) => candidatesWikipediaOther(title, s, ctx),
+      minSize: 48,
+    },
+    {
+      label: 'apple artwork',
+      health: 'apple',
+      enabled: (s) => s.srcApple,
+      candidates: (entry, title, s, ctx) => candidatesApple(title, s, ctx),
+      minSize: 64,
+    },
+    {
+      label: 'image search api',
+      enabled: (s) => s.srcSearch && s.searchKey,
+      candidates: (entry, title, s, ctx) => candidatesImageSearch(title, s, ctx),
+      minSize: 64,
+    },
+    {
+      label: 'website favicon',
+      enabled: (s) => s.srcFavicon,
+      candidates: (entry, title, s, ctx) => candidatesWebsiteFavicons(entry, title, s, ctx),
+      minSize: 32,
+      parallel: 4,
+    },
+  ];
+
+  async function findLogoOnce(entry, settings, ctx) {
+    const title = cleanTitle(entry.title);
+
+    for (const source of LOGO_SOURCES) {
+      if (!source.enabled(settings) || (source.health && sourceDead(source.health))) {
+        continue;
+      }
+
+      const hit = await trySource(
+        source.label,
+        () => source.candidates(entry, title, settings, ctx),
+        source.minSize,
+        settings,
+        ctx,
+        source.parallel,
+      );
+
+      if (hit) return hit;
+    }
+
+    return null;
+  }
+
+  async function findLogo(entry, settings) {
+    await waitWhilePaused();
+
+    if (run.cancelled) {
+      return { cancelled: true };
+    }
+
+    const title = cleanTitle(entry.title);
+
+    if (!title) {
+      return { reason: 'no title to search with' };
+    }
+
+    const cacheKey = normalizeText(title);
+
+    if (settings.dedupe && titleResultCache.has(cacheKey)) {
+      return titleResultCache.get(cacheKey);
+    }
+
+    let ctx = { hadError: false };
+
+    let hit = await findLogoOnce(entry, settings, ctx);
+
+    if (!hit && ctx.hadError && settings.retry && !run.cancelled) {
+      await sleep(600);
+
+      ctx = { hadError: false };
+
+      hit = await findLogoOnce(entry, settings, ctx);
+    }
+
+    if (run.cancelled && !hit) {
+      return { cancelled: true };
+    }
+
+    const result = hit || {
+      reason: ctx.hadError
+        ? 'no logo found (some lookups failed or were blocked)'
+        : 'no logo found',
+    };
+
+    /* a miss caused by failed lookups is not cached: a later duplicate may do better */
+    if (settings.dedupe && (hit || !ctx.hadError)) {
+      titleResultCache.set(cacheKey, result);
+    }
+
+    return result;
+  }
+
+  /* ============================================================
+   BUILD PLAYLIST
+   Entries with a logo keep their original order. Entries
+   without one go to the end, also in original order, unless the
+   exclude option is on.
+   ============================================================ */
+
+  function buildOutputPlaylist(parsed, results, excludeMissing) {
+    const withLogo = [];
+    const withoutLogo = [];
+
+    let addedCount = 0;
+    let keptExisting = 0;
+    let excludedCount = 0;
+
+    parsed.entries.forEach((entry, index) => {
+      if (entry.hasLogo) {
+        withLogo.push(...renderEntry(entry));
+
+        keptExisting++;
+
+        return;
+      }
+
+      const result = results.get(index);
+
+      if (result && result.logo) {
+        withLogo.push(...renderEntry(entry, applyLogo(entry.extinf, result.logo)));
+
+        addedCount++;
+
+        return;
+      }
+
+      /*
+       * A result without a logo means a search really finished
+       * and found nothing. Entries that were never searched
+       * (cancelled run) have no result and are always kept.
+       */
+      if (excludeMissing && result) {
+        excludedCount++;
+
+        return;
+      }
+
+      withoutLogo.push(...renderEntry(entry, null));
+    });
+
+    const lines = [parsed.extm3u, ...parsed.header, ...withLogo, ...withoutLogo];
+
+    return {
+      text: lines.join('\n'),
+      addedCount,
+      keptExisting,
+      excludedCount,
+      missingCount: parsed.entries.length - keptExisting - addedCount - excludedCount,
+    };
+  }
+
+  /* ============================================================
+   IMAGE VIEWER
+   ============================================================ */
+
+  function buildViewerItems(parsed, results, excludeMissing) {
+    const withLogo = [];
+    const withoutLogo = [];
+
+    parsed.entries.forEach((entry, index) => {
+      const base = {
+        title: cleanTitle(entry.title) || '(no title)',
+        url: entry.url || '',
+      };
+
+      if (entry.hasLogo) {
+        withLogo.push({
+          ...base,
+          logo: entry.existingLogo,
+          source: 'already had a logo',
+          note: 'already had a logo',
+        });
+
+        return;
+      }
+
+      const result = results.get(index);
+
+      if (result && result.logo) {
+        withLogo.push({
+          ...base,
+          logo: result.logo,
+          source: result.source,
+          note: 'found via ' + result.source,
+        });
+
+        return;
+      }
+
+      if (excludeMissing && result) {
+        return;
+      }
+
+      withoutLogo.push({
+        ...base,
+        logo: '',
+        source: '',
+        note: result ? result.reason : 'not searched (the run was stopped before this entry)',
+      });
+    });
+
+    const all = [...withLogo, ...withoutLogo];
+
+    /* the same image on several entries usually means a generic or shared icon */
+    const uses = new Map();
+
+    all.forEach((i) => {
+      if (i.logo) uses.set(i.logo, (uses.get(i.logo) || 0) + 1);
+    });
+
+    all.forEach((i) => {
+      const n = i.logo ? uses.get(i.logo) : 0;
+
+      i.shared = n > 1;
+
+      if (i.shared) {
+        i.note += `, same image on ${n} entries`;
+      }
+    });
+
+    return all;
+  }
+
+  function populateViewerSources() {
+    const sel = $('viewerSource');
+
+    const sources = [...new Set(viewerItems.map((i) => i.source).filter(Boolean))];
+
+    sel.textContent = '';
+
+    const add = (value, label) => {
+      const o = document.createElement('option');
+
+      o.value = value;
+      o.textContent = label;
+
+      sel.appendChild(o);
+    };
+
+    add('any', 'Any source');
+
+    if (viewerItems.some((i) => i.shared)) {
+      add('__shared', 'Same image on several entries');
+    }
+
+    sources.forEach((src) => add(src, src));
+  }
+
+  function viewerPlaceholder() {
+    const wrap = document.createElement('div');
+
+    wrap.innerHTML =
+      '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+      '<circle cx="50" cy="50" r="48" fill="#6b6b6b"></circle>' +
+      '<path d="M42 28 L64 50 L42 72" fill="none" stroke="#222222" ' +
+      'stroke-width="12" stroke-linecap="round" stroke-linejoin="round"></path>' +
+      '</svg>';
+
+    return wrap.firstChild;
+  }
+
+  function viewerRow(item, number) {
+    const row = document.createElement('div');
+    row.className = 'viewer-row';
+
+    const num = document.createElement('div');
+    num.className = 'viewer-num';
+    num.textContent = number;
+
+    const thumb = document.createElement('div');
+    thumb.className = 'viewer-thumb';
+
+    const text = document.createElement('div');
+    text.className = 'viewer-text';
+
+    const title = document.createElement('div');
+    title.className = 'viewer-title';
+    title.textContent = item.title;
+
+    const url = document.createElement('div');
+    url.className = 'viewer-url';
+    url.textContent = item.url;
+
+    const note = document.createElement('div');
+    note.className = 'viewer-note';
+    note.textContent = item.note;
+
+    if (item.logo) {
+      const img = document.createElement('img');
+
+      img.referrerPolicy = 'no-referrer';
+      img.loading = 'lazy';
+      img.alt = '';
+
+      img.onerror = () => {
+        thumb.replaceChildren(viewerPlaceholder());
+
+        note.textContent += ' (this image could not be displayed here)';
+      };
+
+      img.src = item.logo;
+
+      thumb.appendChild(img);
+    } else {
+      thumb.appendChild(viewerPlaceholder());
+    }
+
+    text.append(title, url, note);
+
+    row.append(num, thumb, text);
+
+    return row;
+  }
+
+  function renderViewer(reset) {
+    const list = $('viewerList');
+
+    const filter = $('viewerFilter').value;
+
+    const source = $('viewerSource').value || 'any';
+
+    const rows = viewerItems
+      .map((item, i) => ({ item, number: i + 1 }))
+      .filter((r) => filter === 'all' || (filter === 'found' ? !!r.item.logo : !r.item.logo))
+      .filter(
+        (r) =>
+          source === 'any' || (source === '__shared' ? r.item.shared : r.item.source === source),
+      );
+
+    if (reset) {
+      list.textContent = '';
+
+      viewerShown = 0;
+    }
+
+    const next = rows.slice(viewerShown, viewerShown + VIEWER_PAGE);
+
+    next.forEach((r) => list.appendChild(viewerRow(r.item, r.number)));
+
+    viewerShown += next.length;
+
+    $('viewerCount').textContent = `${viewerShown} of ${rows.length}`;
+
+    $('viewerMore').style.display = viewerShown < rows.length ? 'block' : 'none';
+  }
+
+  function toggleViewer() {
+    const viewer = $('viewer');
+
+    const show = viewer.style.display !== 'block';
+
+    viewer.style.display = show ? 'block' : 'none';
+
+    $('viewImagesButton').textContent = show ? 'Hide Images' : 'View Images';
+
+    if (show) {
+      populateViewerSources();
+
+      renderViewer(true);
+
+      viewer.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  const LOCKED_INPUT_IDS = [
+    'fileInput',
+    'urlInput',
+    'textInput',
+    'concurrencyInput',
+    'timeoutInput',
+    'retryCheckbox',
+    'dedupeCheckbox',
+    'excludeCheckbox',
+    'srcRadioCheckbox',
+    'srcWikiCheckbox',
+    'srcTuneinCheckbox',
+    'srcWikidataCheckbox',
+    'srcCommonsCheckbox',
+    'srcWikiOtherCheckbox',
+    'srcAppleCheckbox',
+    'srcSearchCheckbox',
+    'srcFaviconCheckbox',
+    'searchProviderSelect',
+    'searchKeyInput',
+  ];
+
+  function getSettings() {
+    const checked = (id) => $(id).checked;
+
+    return {
+      concurrency: readNumber('concurrencyInput'),
+      timeout: readNumber('timeoutInput'),
+      retry: checked('retryCheckbox'),
+      dedupe: checked('dedupeCheckbox'),
+      exclude: checked('excludeCheckbox'),
+      srcRadio: checked('srcRadioCheckbox'),
+      srcWiki: checked('srcWikiCheckbox'),
+      srcTunein: checked('srcTuneinCheckbox'),
+      srcWikidata: checked('srcWikidataCheckbox'),
+      srcCommons: checked('srcCommonsCheckbox'),
+      srcWikiOther: checked('srcWikiOtherCheckbox'),
+      srcApple: checked('srcAppleCheckbox'),
+      srcSearch: checked('srcSearchCheckbox'),
+      srcFavicon: checked('srcFaviconCheckbox'),
+      searchProvider: $('searchProviderSelect').value,
+      searchKey: $('searchKeyInput').value.trim(),
+    };
+  }
+
+  function resetOutput() {
+    $('output').value = '';
+
+    hideDownload('downloadButton');
+    hideDownload('downloadReportButton');
+
+    setCurrentChecking('');
+
+    $('summaryLine').textContent = '';
+
+    setDisplayStates(false);
+
+    progress.done = 0;
+    progress.total = 0;
+
+    titleResultCache.clear();
+    imageCheckCache.clear();
+    rbCache.clear();
+
+    rbDeadUntil = 0;
+    appleNextAt = 0;
+
+    Object.keys(sourceHealth).forEach((k) => delete sourceHealth[k]);
+
+    viewerItems = [];
+
+    $('viewer').style.display = 'none';
+    $('viewerList').textContent = '';
+    $('viewerSource').textContent = '';
+    $('viewImagesButton').style.display = 'none';
+    $('viewImagesButton').textContent = 'View Images';
+  }
+
+  function parsePlaylist(text) {
+    const parsed = parseM3U(text);
+
+    parsed.entries.forEach((entry) => {
+      entry.existingLogo = entry.extinf ? getExistingLogo(splitExtinf(entry.extinf).prefix) : '';
+      entry.hasLogo = !!entry.existingLogo;
+    });
+
+    return parsed;
+  }
+
+  async function processLinks(text, type, sourceName) {
+    beginRun();
+    resetOutput();
+    toggleButtons(type, true);
+
+    const settings = getSettings();
+
+    searchApiError = null;
+
+    setCurrentChecking('Starting logo search...');
+
+    const parsed = parsePlaylist(text);
+
+    if (!parsed.entries.length) {
+      setCurrentChecking('No stream entries found in the M3U content.');
+
+      $('output').value = parsed.extm3u;
+
+      toggleButtons(type, false);
+
+      return;
+    }
+
+    /* index -> { logo, source } or { reason }; missing = never searched */
+    const results = new Map();
+    const jobs = [];
+
+    parsed.entries.forEach((entry, index) => {
+      if (entry.hasLogo) {
+        return;
+      }
+
+      if (!entry.extinf || !entry.url || !cleanTitle(entry.title)) {
+        results.set(index, { reason: 'no title to search with' });
+
+        return;
+      }
+
+      jobs.push({ entry, index });
+    });
+
+    progress.total = jobs.length;
+
+    let found = 0;
+    let missing = 0;
+
+    await runPool(jobs, settings.concurrency, async ({ entry, index }) => {
+      const result = await findLogo(entry, settings);
+
+      if (result.cancelled) {
+        return;
+      }
+
+      results.set(index, result);
+
+      if (result.logo) found++;
+      else missing++;
+
+      showProgress(
+        'Searching entry',
+        entry.title,
+        entry.url,
+        (done, total) => `Processed ${done}/${total} — ${found} logos found, ${missing} not found`,
+      );
+    });
+
+    const cancelled = run.cancelled;
+    const playlist = buildOutputPlaylist(parsed, results, settings.exclude);
+
+    $('output').value = playlist.text;
+
+    toggleButtons(type, false);
+
+    const withoutLogo = playlist.missingCount + playlist.excludedCount;
+
+    if (cancelled) {
+      const notSearched = jobs.filter((job) => !results.has(job.index)).length;
+
+      setCurrentChecking(
+        `Embedding cancelled. ${playlist.addedCount} logos embedded; ` +
+          'unsearched entries were kept at the end of the playlist.',
+      );
+
+      $('summaryLine').textContent =
+        `Cancelled: ${playlist.addedCount} logos embedded, ` +
+        `${playlist.keptExisting} already had one, ${notSearched} not searched.`;
+    } else {
+      setCurrentChecking(
+        `Done. Embedded ${playlist.addedCount} logos for ${jobs.length} searched entries.`,
+      );
+
+      $('summaryLine').textContent =
+        `Done: ${playlist.addedCount} logos embedded, ` +
+        `${playlist.keptExisting} already had one, ${withoutLogo} without a logo ` +
+        (settings.exclude ? `(${playlist.excludedCount} excluded), ` : '(moved to the end), ') +
+        `${parsed.entries.length} total.`;
+    }
+
+    if (searchApiError) {
+      $('summaryLine').textContent += ` Image search API error: ${searchApiError}.`;
+    }
+
+    setDownload(
+      'downloadButton',
+      'downloadLink',
+      playlist.text,
+      'audio/x-mpegurl',
+      outputName(sourceName, '_logos'),
+    );
+
+    viewerItems = buildViewerItems(parsed, results, settings.exclude);
+
+    $('viewImagesButton').style.display = 'block';
+
+    const notFound = [];
+    const foundBlocks = [];
+
+    parsed.entries.forEach((entry, index) => {
+      const result = results.get(index);
+
+      if (!result) return;
+
+      const name = cleanTitle(entry.title) || '(no title)';
+
+      if (result.logo) {
+        foundBlocks.push(`${name}\n${entry.url}\nlogo: ${result.logo}\nsource: ${result.source}\n`);
+      } else {
+        notFound.push(`${name}\n${entry.url || '(no url)'}\nreason: ${result.reason}\n`);
+      }
+    });
+
+    if (notFound.length || foundBlocks.length) {
+      setDownload(
+        'downloadReportButton',
+        'downloadReportLink',
+        `=== NO LOGO FOUND (${notFound.length}) ===\n\n${notFound.join('\n')}` +
+          `\n=== LOGOS EMBEDDED (${foundBlocks.length}) - check these for wrong matches ===\n\n` +
+          foundBlocks.join('\n'),
+        'text/plain',
+        reportName(sourceName, '_logos', '_logo_report.txt'),
+      );
+    }
+  }
+
+  wireControls({
+    downloadButton: () => clickLink('downloadLink'),
+    downloadReportButton: () => clickLink('downloadReportLink'),
+    viewImagesButton: toggleViewer,
+    viewerMore: () => renderViewer(false),
+  });
+
+  $('viewerFilter').addEventListener('change', () => renderViewer(true));
+  $('viewerSource').addEventListener('change', () => renderViewer(true));
+})();
+</script>
+
+</body>
+</html>
